@@ -1,0 +1,6 @@
+*.json
+*.jl
+*.html
+/trs/output
+/trs/__pycache__/
+/trs/spiders/__pycache__/
