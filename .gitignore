@@ -4,3 +4,6 @@
 /trs/output
 /trs/__pycache__/
 /trs/spiders/__pycache__/
+/raw/
+/preprocessed/
+/output/

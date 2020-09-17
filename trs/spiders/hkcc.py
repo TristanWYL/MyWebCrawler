@@ -83,7 +83,7 @@ class HKCC_Spider(scrapy.Spider):
         if len(jyutpings) > 1 or len(jyutpings) == 0:
             self.char_jyutping_pair[character] = '*'
         else:
-            self.char_jyutping_pair[character] = jyutpings[0].strip()
+            self.char_jyutping_pair[character] = jyutpings[0].replace(" ", "")
 
 
     def close(self, reason):
