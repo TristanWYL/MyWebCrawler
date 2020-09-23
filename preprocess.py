@@ -3,6 +3,8 @@ from pathlib import Path
 import inspect
 import json
 import csv
+import xml.etree.ElementTree as ET
+import re
 
 class EmptyDict(dict):
     def __init__(self, *args, **kwargs):
@@ -46,9 +48,18 @@ detail_pattern = {
     "#strokes": 0
 }
 
-def data_merge(main_dict, word_dict, detail_dict):
+def data_merge_for_single_file(main_dict, word_dict, detail_dict):
     word_jyutping = word_dict["word"] + word_dict["jyutping"]
     if word_jyutping in main_dict:
+        # remove duplications
+        for details in main_dict[word_jyutping]["details"]:
+            same_detail = True
+            for k, v in details.items():
+                if detail_dict[k] != v:
+                    same_detail = False
+                    break
+            if same_detail:
+                return
         main_dict[word_jyutping]["details"].append(detail_dict)
     else:
         word_dict["details"] = [detail_dict]
@@ -111,7 +122,7 @@ def canclid(file_path):
                 detail_dict = EmptyDict(**detail_pattern)
                 detail_dict["source"] = data_source_id
                 # merge data
-                data_merge(data, word_dict, detail_dict)
+                data_merge_for_single_file(data, word_dict, detail_dict)
     elif file_path.endswith(".csv"):
         if file_name_src == "can_orth_association.csv":
             with open(file_path, 'r') as f:
@@ -127,7 +138,7 @@ def canclid(file_path):
                     if word_with_same_jyutping != "/": 
                         detail_dict["words_with_similar_jyutping"] = word_with_same_jyutping
                     detail_dict["example_Chinese"] = row["簡略解釋與例子"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_draft.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -139,7 +150,7 @@ def canclid(file_path):
                     detail_dict = EmptyDict(**detail_pattern)
                     detail_dict["source"] = data_source_id
                     detail_dict["example_Chinese"] = row["意思及例子"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_houxingquan.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -153,7 +164,7 @@ def canclid(file_path):
                     detail_dict["words_with_similar_meaning"] = row["异体字"].strip()
                     detail_dict["words_with_similar_jyutping"] = row["同/近音字 (潜在异体字）"].strip()
                     detail_dict["explanation_Chinese"] = row["字（词）义"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_main.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -166,7 +177,7 @@ def canclid(file_path):
                     detail_dict["source"] = data_source_id
                     detail_dict["example_Chinese"] = row["意思及例子"].strip()
                     detail_dict["remark"] = row["疑問或建議/註解"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_research_group.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -179,7 +190,7 @@ def canclid(file_path):
                     detail_dict["source"] = data_source_id
                     detail_dict["example_Chinese"] = row["意思及例子"].strip()
                     detail_dict["remark"] = row["疑問或建議/註解"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_yueyinxiaojing_general.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -192,7 +203,7 @@ def canclid(file_path):
                     detail_dict["source"] = data_source_id
                     detail_dict["remark"] = row["釋義補充"].strip()
                     detail_dict["explanation_Chinese"] = row["廣韻釋義"].strip()
-                    data_merge(data, word_dict, detail_dict)
+                    data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_yueyinxiaojing_words_with_same_jyutping.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -206,7 +217,7 @@ def canclid(file_path):
                         detail_dict = EmptyDict(**detail_pattern)
                         detail_dict["source"] = data_source_id
                         detail_dict["words_with_similar_jyutping"] = words_with_same_reading.replace(w, "")
-                        data_merge(data, word_dict, detail_dict)
+                        data_merge_for_single_file(data, word_dict, detail_dict)
         elif file_name_src == "can_orth_yueyinxiaojing.csv":
             with open(file_path, 'r') as f:
                 reader = csv.DictReader(f)
@@ -220,7 +231,7 @@ def canclid(file_path):
                         detail_dict = EmptyDict(**detail_pattern)
                         detail_dict["source"] = data_source_id
                         detail_dict["words_with_similar_jyutping"] = words_with_same_reading.replace(w, "")
-                        data_merge(data, word_dict, detail_dict)
+                        data_merge_for_single_file(data, word_dict, detail_dict)
     # write the data into a json file
     with open(output_file_name, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -232,7 +243,50 @@ def hanyu(file_path):
     pass
 
 def hkcancor(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, file_name_des+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+
+    # split the jyutpings
+    pattern_for_jyutping = r"[a-zA-Z]+\d"
+
+    # wrap the xml file due to multiple root nodes
+    f = Path(file_path)
+    f_xml = b'<content>' + f.read_bytes() + b'</content>'
+    
+    tree = ET.fromstring(f_xml)
+    tags = tree.findall('sent/sent_tag')
+    unwanted_words = "?。，-？、！"
+    for tag in tags:
+        lines = tag.text.split()
+        for line in lines:
+            items = line.split('/')
+            if len(items) < 3: continue
+            if items[0][0] in unwanted_words:
+                continue
+            # prepare the word instance
+            word_dict = EmptyDict(**word_pattern)
+            word_dict["word"] = items[0]
+
+            jyutpings = re.findall(pattern_for_jyutping, items[2])
+            word_dict["jyutping"] = " ".join(jyutpings)
+            word_dict["jyutping_mode"] = 6
+            # prepare the detail instance
+            detail_dict = EmptyDict(**detail_pattern)
+            detail_dict["source"] = data_source_id
+            detail_dict["POS"] = items[1]
+            # merge data
+            data_merge_for_single_file(data, word_dict, detail_dict)
+    
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def hkcc(file_path):
     return
@@ -268,17 +322,72 @@ def hkcc(file_path):
             detail_dict["source"] = data_source_id
             detail_dict["example_Chinese"] = words
             # merge data
-            data_merge(data, word_dict, detail_dict)
+            data_merge_for_single_file(data, word_dict, detail_dict)
     
     # write the data into a json file
     with open(output_file_name, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def lexi_mf(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, inspect.stack()[0][3]+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+    data_source = json.load(open(file_path, 'r'))
+    for word in data_source:
+        for info in word['info']:
+            word_dict = EmptyDict(**word_pattern)
+            word_dict["word"] = word["word"]
+            word_dict["jyutping"] = info["jyutping"]
+            word_dict["jyutping_mode"] = 6
+            # prepare the detail instance
+            detail_dict = EmptyDict(**detail_pattern)
+            detail_dict["source"] = inspect.stack()[0][3]
+            detail_dict["explanation_Chinese"] = info["note"]
+            detail_dict["example_Chinese"] = info["examples"]
+            # merge data
+            data_merge_for_single_file(data, word_dict, detail_dict)
+    
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def loanword(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, inspect.stack()[0][3]+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+    data_source = json.load(open(file_path, 'r'))
+    for word in data_source:
+        for info in word['wordprop']:
+            word_dict = EmptyDict(**word_pattern)
+            word_dict["word"] = word["chars"]
+            word_dict["jyutping"] = word["hw"]
+            word_dict["jyutping_mode"] = 6
+            # prepare the detail instance
+            detail_dict = EmptyDict(**detail_pattern)
+            detail_dict["source"] = inspect.stack()[0][3]
+            detail_dict["POS"] = info["ps"]
+            detail_dict["explanation_Chinese"] = info["stch"]
+            detail_dict["example_Chinese"] = info["exchar"]
+            detail_dict["explanation_English"] = info["df"]
+            detail_dict["example_English"] = info["exeng"]
+            # merge data
+            data_merge_for_single_file(data, word_dict, detail_dict)
+    
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def SpeechOcean(file_path):
     pass
