@@ -55,6 +55,9 @@ def data_merge_for_single_file(main_dict, word_dict, detail_dict):
         for details in main_dict[word_jyutping]["details"]:
             same_detail = True
             for k, v in details.items():
+                if k not in detail_dict:
+                    same_detail = False
+                    break
                 if detail_dict[k] != v:
                     same_detail = False
                     break
@@ -390,16 +393,208 @@ def loanword(file_path):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def SpeechOcean(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, inspect.stack()[0][3]+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+    with open(file_path) as f: 
+            count = 0
+            for line in f:
+                count += 1
+                if count < 2:
+                    continue
+                items = line.split('\t')
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = items[0].strip()
+                word_dict["jyutping"] = items[1].strip()
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = inspect.stack()[0][3]
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def TonyDictionary(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, file_name_des+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
 
+    first_line = 1
+    last_line = -1
+    
+    if file_name_src.startswith("char"):
+        cur_continuum = 0
+        valid_continuum = [(74,3654),(4065,9463),(9829,-1)]
+        with open(file_path) as f: 
+            count = 0
+            start, end = valid_continuum[cur_continuum]
+            for line in f:
+                count += 1
+                if count<start:
+                    continue
+                if end != -1 and count >= end:
+                    cur_continuum += 1
+                    if cur_continuum >= len(valid_continuum):
+                        break
+                    start, end = valid_continuum[cur_continuum]
+                    continue
+                if "unknown" in line:
+                    continue
+                items = line.split(',')
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = items[0].strip()
+                word_dict["jyutping"] = items[1].strip()
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = data_source_id
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    elif file_name_src.startswith("main"):
+        last_line = 59535
+        with open(file_path) as f: 
+            count = 0
+            for line in f:
+                count += 1
+                if count < first_line:
+                    continue
+                items = line.split(',')
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = items[0].strip()
+                word_dict["jyutping"] = items[1].strip().replace('-', ' ')
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = data_source_id
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    elif file_name_src.startswith("user"):
+        with open(file_path) as f: 
+            for line in f:
+                items = line.split(',')
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = items[0].strip()
+                word_dict["jyutping"] = items[1].strip().replace('-', ' ')
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = data_source_id
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    
 def words_faiman(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1].split('.')[-2]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, file_name_des+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+
+    if file_path.endswith(".csv"):
+        return
+    # load the source data
+    data_source = json.load(open(file_path, 'r'))
+    if file_path.endswith("charlist.json"):
+        for word, jyutpings in data_source.items():
+            for jyutping, _ in jyutpings.items():
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = word.strip()
+                word_dict["jyutping"] = jyutping.strip()
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = data_source_id
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    elif file_path.endswith("wordslist.json"):
+        for word, jyutpings in data_source.items():
+            if word == "":
+                continue
+            for jyutping in jyutpings:
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = word.strip()
+                word_dict["jyutping"] = jyutping.strip()
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = data_source_id
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 def words_zidin(file_path):
-    pass
+    return
+    data = dict()
+    data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
+    # create output directory
+    output_dir = Path.joinpath(Path(os.path.dirname(os.path.realpath(__file__))), "preprocessed", inspect.stack()[0][3])
+    output_file_name = Path.joinpath(output_dir, inspect.stack()[0][3]+".json")
+    os.makedirs(output_dir, exist_ok=True)
+    # file analysis
+    file_name_src = file_path.split(os.sep)[-1]
+    data_source = json.load(open(file_path, 'r'))
+    for item in data_source:
+        for info in item['info']:
+            word_dict = EmptyDict(**word_pattern)
+            word_dict["word"] = item["word"]
+            i = 0
+            jyutping = ""
+            for jp in info["jyutping"]:
+                if i % 2 == 0:
+                    jyutping += jp
+                else:
+                    jyutping += jp+" "
+                i += 1
+            word_dict["jyutping"] = jyutping.strip()
+            word_dict["jyutping_mode"] = 6
+            # prepare the detail instance
+            detail_dict = EmptyDict(**detail_pattern)
+            detail_dict["source"] = inspect.stack()[0][3]
+            detail_dict["POS"] = info["pos"]
+            detail_dict["explanation_Chinese"] = info["explain"]
+            detail_dict["example_Chinese"] = info["examples"] + info["phrases"]
+            # merge data
+            data_merge_for_single_file(data, word_dict, detail_dict)
+
+    for item in data_source:
+        for info in item['info']:
+            for phrase in info["phrases"]:
+                word_dict = EmptyDict(**word_pattern)
+                word_dict["word"] = phrase["phrase"]
+                word_dict["jyutping"] = phrase["jyutping"]
+                word_dict["jyutping_mode"] = 6
+                # prepare the detail instance
+                detail_dict = EmptyDict(**detail_pattern)
+                detail_dict["source"] = inspect.stack()[0][3]
+                # merge data
+                data_merge_for_single_file(data, word_dict, detail_dict)
+
+    # write the data into a json file
+    with open(output_file_name, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     dir_source = "/home/tristanwu/TRS/MyWebCrawler/raw"
