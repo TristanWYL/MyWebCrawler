@@ -48,28 +48,45 @@ class WordsZidinSpider(scrapy.Spider):
             word_info = dict()
             jyutping = word_meaning_html.xpath('./table/tbody/tr/td/span[@class="zi-pronunciation"]//text()').getall()
             jyutping = [txt for txt in (txt.strip() for txt in jyutping) if txt]
-            explain = word_meaning_html.xpath('./table/tbody/tr[@class="zidin-explanation"]/td[2]/div[1]//text()').getall()[1:]
-            explain = ''.join([item.strip() for item in explain])
+            texts = word_meaning_html.xpath('./table/tbody/tr[@class="zidin-explanation"]/td[2]//div[parent::*[not(@*)]][1]//text()').getall()
+            Chinese_explain, English_explain = "", ""
+            if 'yue' in texts[0]:
+                Chinese_explain = texts[1:]
+                Chinese_explain = ''.join([item.strip() for item in Chinese_explain])
+            texts = word_meaning_html.xpath('./table/tbody/tr[@class="zidin-explanation"]/td[2]//div[parent::*[not(@*)]][2]//text()').getall()
+            if 'eng' in texts[0]:
+                English_explain = texts[1:]
+                English_explain = ''.join([item.strip() for item in English_explain])
             pos = word_meaning_html.xpath('./table/tbody/tr[2]/td[2]/span/text()').get()
             word_info['pos'] = pos
             word_info['jyutping'] = jyutping
-            word_info['explain'] = explain
-            example_nodes = word_meaning_html.xpath('./table/tbody/tr/td/div[@class="zi-details-example-item"]')
+            word_info['explain'] = {"Chinese":Chinese_explain, "English":English_explain}
+            example_nodes = word_meaning_html.xpath('./table/tbody/tr/td//div[@class="zi-details-example-item"]')
             examples = []
             for node in example_nodes:
-                texts = node.xpath('./div[1]//text()').getall()
-                example = "".join([text.strip() for text in texts[1:-1]])
-                jyutping = texts[-1].strip("()")
-                examples.append({"example":example, "jyutping":jyutping})
+                samples = {}
+                for idx, _ in enumerate(node.xpath('./div').getall(), 1):
+                    texts = node.xpath('./div[{}]//text()'.format(idx)).getall()
+                    sample = "".join([text.strip() for text in texts[1:]])
+                    if 'yue' in texts[0]:
+                        samples["Chinese"] = sample
+                    elif 'eng' in texts[0]:
+                        samples["English"] = sample
+                examples.append(samples)
             word_info['examples'] = examples
             phrases_node = word_meaning_html.xpath(
-                './table/tbody/tr[@class="zidin-explanation"]/td[2]/div[@class="zi-details-phrase-item"]')
+                './table/tbody/tr[@class="zidin-explanation"]/td[2]//div[@class="zi-details-phrase-item"]')
             phrases = []
             for node in phrases_node:
-                texts = node.xpath('./div[1]//text()').getall()
-                phrase = "".join([text.strip() for text in texts[1:-1]])
-                jyutping = texts[-1].strip("()")
-                phrases.append({"phrase":phrase, "jyutping":jyutping})
+                samples = {}
+                for idx, _ in enumerate(node.xpath('./div').getall(), 1):
+                    texts = node.xpath('./div[{}]//text()'.format(idx)).getall()
+                    sample = "".join([text.strip() for text in texts[1:]])
+                    if 'yue' in texts[0]:
+                        samples["Chinese"] = sample
+                    elif 'eng' in texts[0]:
+                        samples["English"] = sample
+                phrases.append(samples)
             word_info['phrases'] = phrases
             similar = word_meaning_html.xpath(
                 './table/tbody/tr[@class="zidin-similar"]/td[2]/a[@href]/text()').getall()

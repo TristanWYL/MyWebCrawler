@@ -546,7 +546,6 @@ def words_faiman(file_path):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def words_zidin(file_path):
-    return
     data = dict()
     data_source_id = file_name_des = inspect.stack()[0][3] +"_"+ file_path.split(os.sep)[-1]
     # create output directory
@@ -574,21 +573,38 @@ def words_zidin(file_path):
             detail_dict = EmptyDict(**detail_pattern)
             detail_dict["source"] = inspect.stack()[0][3]
             detail_dict["POS"] = info["pos"]
-            detail_dict["explanation_Chinese"] = info["explain"]
-            detail_dict["example_Chinese"] = info["examples"] + info["phrases"]
+            detail_dict["explanation_Chinese"] = info["explain"]["Chinese"]
+            detail_dict["explanation_English"] = info["explain"]["English"]
+            example_Chinese_list = []
+            example_English_list = []
+            for example in info["examples"]:
+                example_Chinese_list.append(example["Chinese"] if "Chinese" in example else "")
+                example_English_list.append(example["English"] if "English" in example else "")
+            for phrase in info["phrases"]:
+                example_Chinese_list.append(phrase["Chinese"] if "Chinese" in phrase else "")
+                example_English_list.append(phrase["English"] if "English" in phrase else "")
+            detail_dict["example_Chinese"] = example_Chinese_list
+            detail_dict["example_English"] = example_English_list
             # merge data
             data_merge_for_single_file(data, word_dict, detail_dict)
 
     for item in data_source:
         for info in item['info']:
             for phrase in info["phrases"]:
+                if "Chinese" not in phrase:
+                    continue
+                txt = phrase["Chinese"]
+                txt_list = re.split("\(|\)", txt)
+                if len(txt_list) < 3:
+                    continue
                 word_dict = EmptyDict(**word_pattern)
-                word_dict["word"] = phrase["phrase"]
-                word_dict["jyutping"] = phrase["jyutping"]
+                word_dict["word"] = txt_list[0]
+                word_dict["jyutping"] = txt_list[1]
                 word_dict["jyutping_mode"] = 6
                 # prepare the detail instance
                 detail_dict = EmptyDict(**detail_pattern)
-                detail_dict["source"] = inspect.stack()[0][3]
+                detail_dict["source"] = inspect.stack()[0][3]+"_phrase"
+                detail_dict["explanation_English"] = phrase["English"] if "English" in phrase else ""
                 # merge data
                 data_merge_for_single_file(data, word_dict, detail_dict)
 
