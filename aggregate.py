@@ -68,6 +68,40 @@ def is_asian(char):
 def len_of_asian_word(word):
     return sum([is_asian(c) for c in word])
 
+# %% localize the url
+urls = [
+    "https://hkcc.eduhk.hk/v1/corpus/signin.php",
+    "http://wongtaksum.no-ip.info:81/corpus.htm",
+	"http://asianlang.engl.polyu.edu.hk/",
+	"https://chaaklau.github.io/elw/",
+	"http://compling.hss.ntu.edu.sg/hkcancor/",
+	"https://words.hk/zidin/",
+	"https://words.hk/faiman/analysis/",
+	"https://github.com/CanCLID",
+	"https://www.jyutping.org/",
+	"https://github.com/gwinterstein/Cifu",
+	"https://humanum.arts.cuhk.edu.hk/Lexis/lexi-mf/",
+	"http://www.arts.cuhk.edu.hk/~lal/corpora.html#CANCORP",
+	"http://www.cuhk.edu.hk/lin/home/bilingual.htm",
+    "https://apps.itsc.cuhk.edu.hk/hanyu/Page/Intro.aspx",
+]
+
+def get_url_by_name(name):
+    ids = name.split("_")
+    _id = ids[0]
+    if ids[0] == "loanword":
+        _id = "elw"
+    elif ids[0] == "SpeechOcean":
+        return ""
+    elif ids[0] == "TonyDictionary":
+        return ""
+    elif ids[0] == "words" and ids[1] == "faiman":
+        _id = "faiman"
+    elif ids[0] == "words" and ids[1] == "zidin":
+        _id = "zidin"
+    for url in urls:
+        if _id in url.lower():
+            return url
 # %%
 data_source_word_cnt = {}
 all_cnt = 0
@@ -82,7 +116,8 @@ for subdir, dirs, files in os.walk(dir_source):
             cnts = [0]*6
             index += 1
             row.append(index)
-            row.append(data_source[list(data_source)[0]]["details"][0]["source"])
+            src = data_source[list(data_source)[0]]["details"][0]["source"]
+            row.append('<a href=\"{}\">{}</a>'.format(get_url_by_name(src), src))
             for _, value in data_source.items():
                 cnt_of_chinese_char = len_of_asian_word(value["word"])
                 idx = cnt_of_chinese_char-1 if cnt_of_chinese_char<=5 else 4
@@ -112,6 +147,9 @@ cnts[-1] = len(data)
 row = ["UNIQUE TOTAL","-"]
 row.extend(cnts)
 rows.append(row)
+
+
+
 
 # %%
 table = Table()
